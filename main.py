@@ -22,8 +22,11 @@ def get_exact_player_id(player_name):
 
 # Function to plot performance over time
 def plot_player_performance_over_time(player_name, game_data):
-    # Ensure 'GAME_DATE' is in the correct format and sort the data
-    game_data['GAME_DATE'] = pd.to_datetime(game_data['GAME_DATE'])
+    # Ensure 'GAME_DATE' is parsed correctly to datetime format
+    game_data['GAME_DATE'] = pd.to_datetime(game_data['GAME_DATE'],
+                                            errors='coerce')
+
+    # Sort the data by the parsed 'GAME_DATE'
     game_data = game_data.sort_values(by='GAME_DATE')
 
     # Plot points per game over time
@@ -164,3 +167,37 @@ stats_df = stats_df.sort_values(by='Projection', ascending=False)
 
 # Print the sorted DataFrame
 print(stats_df)
+# Loop through each category and player
+for category, player_list in players_data.items():
+    for player_name, team in player_list:
+        print(f"Fetching stats for {player_name} ({team})...")
+
+        # Fetch game logs for the player
+        player_id = get_exact_player_id(player_name)
+        if not player_id:
+            continue  # Skip player if not found
+
+        game_log = playergamelog.PlayerGameLog(player_id=player_id,
+                                               season=SEASON)
+        game_data = game_log.get_data_frames()[0]
+
+        # Ensure all required columns are in the DataFrame
+        required_columns = ['PTS', 'REB', 'AST', 'STL', 'BLK', 'TOV', 'WL',
+                            'GAME_DATE']
+        for col in required_columns:
+            if col not in game_data.columns:
+                game_data[col] = 0  # Add missing columns with zero
+
+        # Calculate win and loss counts
+        total_games = len(game_data)
+        wins = len(game_data[game_data['WL'] == 'W'])
+        losses = len(game_data[game_data['WL'] == 'L'])
+
+        # Calculate percentages
+        win_percentage = (wins / total_games) * 100 if total_games > 0 else 0
+        loss_percentage = (losses / total_games) * 100 if total_games > 0 else 0
+
+        # Print the W/L percentages
+        print(
+            f"{player_name} - Wins: {wins} ({win_percentage:.2f}%), Losses: {losses} ({loss_percentage:.2f}%)")
+
